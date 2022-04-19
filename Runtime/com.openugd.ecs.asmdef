@@ -1,0 +1,14 @@
+{
+  "name": "com.openugd.ecs",
+  "rootNamespace": "OpenUGD.ECS",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": true,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
