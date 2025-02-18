@@ -16,20 +16,18 @@ namespace OpenUGD.ECS.Entities
         public T Component;
     }
 
-    public interface ITable
+    public interface IEntityComponents
     {
         bool Contains(EntityId entity);
         void Delete(EntityId entity);
         void DeleteAll();
 
-        int Count
-        {
+        int Count {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get;
         }
 
-        int Capacity
-        {
+        int Capacity {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get;
         }
@@ -37,7 +35,8 @@ namespace OpenUGD.ECS.Entities
         void GetEntities(EntityList entities);
     }
 
-    public interface ITable<T> : ITable, IEnumerable<ComponentIndex<T>> where T : struct, IComponent
+    public interface IEntityComponents<T> : IEntityComponents, IEnumerable<ComponentIndex<T>>
+        where T : struct, IComponent
     {
         T this[EntityId entityId] { get; set; }
         ref T this[short index] { get; }
@@ -45,20 +44,18 @@ namespace OpenUGD.ECS.Entities
         void Set(EntityId entityId, T component);
         bool TryGet(EntityId entityId, out T component);
 
-        T[] RawComponents
-        {
+        T[] RawComponents {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get;
         }
 
-        bool[] RawContains
-        {
+        bool[] RawContains {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get;
         }
     }
 
-    public interface ITableRawData : ITable
+    public interface IEntityComponentsRawData : IEntityComponents
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         Array GetComponents();
@@ -71,11 +68,5 @@ namespace OpenUGD.ECS.Entities
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         IComponent GetComponent(int index);
-    }
-
-    public enum TableType
-    {
-        Array,
-        Map
     }
 }

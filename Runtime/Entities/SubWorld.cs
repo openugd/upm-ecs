@@ -15,9 +15,9 @@ namespace OpenUGD.ECS.Entities
         private readonly Stack<short> _poolIndex;
         private readonly Dictionary<Type, int> _typeIndex;
         private readonly EntitiesMap _entities;
-        private readonly SharedComponentTable _sharedComponentTable;
-        private ITableRawData?[] _tablesList;
-        private int _typeTableIndex = 0;
+        private readonly SharedEntityComponents _sharedEntityComponents;
+        private IEntityComponentsRawData?[] _entityComponents;
+        private int _typeComponentsIndex;
         private short _entityIndex;
 
         // ReSharper disable once MemberCanBePrivate.Global
@@ -27,7 +27,8 @@ namespace OpenUGD.ECS.Entities
             World world,
             int startEntitiesCapacity = Constants.StartEntitiesCapacity,
             int sharedComponentsBufferCapacity = Constants.SharedComponentsBufferCapacity,
-            int sharedComponentsCapacity = Constants.SharedComponentsCapacity
+            int sharedComponentsCapacity = Constants.SharedComponentsCapacity,
+            int startComponentsCapacity = Constants.StartComponentsCapacity
         )
         {
             if (startEntitiesCapacity <= 0)
@@ -35,47 +36,54 @@ namespace OpenUGD.ECS.Entities
 
             World = world;
             _entityIndex = 0;
-            _tablesList = new ITableRawData[8];
+            _typeComponentsIndex = 0;
+            _entityComponents = new IEntityComponentsRawData[startComponentsCapacity];
             _descriptorCache = new Dictionary<Type, TypeDescriptor>();
             _poolIndex = new Stack<short>(startEntitiesCapacity);
             _typeIndex = new Dictionary<Type, int>();
-            _entities = new EntitiesMap(this);
-            _sharedComponentTable = new SharedComponentTable(sharedComponentsBufferCapacity, sharedComponentsCapacity);
+            _entities = new EntitiesMap(this, startEntitiesCapacity);
+            _sharedEntityComponents = new SharedEntityComponents(sharedComponentsBufferCapacity, sharedComponentsCapacity);
         }
 
-        public SharedComponentTable Shared => _sharedComponentTable;
+        public SharedEntityComponents Shared => _sharedEntityComponents;
 
         public bool Contains(EntityId entityId) => _entities.Contains(entityId);
 
-        protected ITable<TComponent> RegisterTable<TComponent>(TableHook<TComponent>? hook = null)
+        protected IEntityComponents<TComponent> AddComponent<TComponent>(EntityComponentHook<TComponent>? hook = null)
             where TComponent : struct, IComponent
         {
-            var table = new TableListImpl<TComponent>(this, _typeTableIndex, _entities, hook);
-            _typeIndex.Add(typeof(TComponent), _typeTableIndex);
+            var entityComponents = new EntityComponentsListImpl<TComponent>(
+                this,
+                _typeComponentsIndex,
+                _entities,
+                hook,
+                _entities.EntityIds.Length
+            );
+            _typeIndex.Add(typeof(TComponent), _typeComponentsIndex);
 
-            if (_typeTableIndex == _tablesList.Length)
+            if (_typeComponentsIndex == _entityComponents.Length)
             {
-                Array.Resize(ref _tablesList, _tablesList.Length << 1);
+                Array.Resize(ref _entityComponents, _entityComponents.Length << 1);
             }
 
-            _tablesList[_typeTableIndex] = table;
+            _entityComponents[_typeComponentsIndex] = entityComponents;
 
-            ++_typeTableIndex;
+            ++_typeComponentsIndex;
 
-            return table;
+            return entityComponents;
         }
 
         public int Count => _entities.Count;
 
         public bool HasComponent<TComponent>(EntityId entityId) where TComponent : struct, IComponent
         {
-            ITable table = _tablesList[GetTypeIndex(typeof(TComponent))]!;
-            return table.Contains(entityId);
+            IEntityComponents entityComponents = _entityComponents[GetTypeIndex(typeof(TComponent))]!;
+            return entityComponents.Contains(entityId);
         }
 
         public void GetComponents(EntityId entityId, List<IComponent> components)
         {
-            foreach (var data in _tablesList)
+            foreach (var data in _entityComponents)
             {
                 if (data == null) break;
                 if (data.Contains(entityId))
@@ -88,10 +96,10 @@ namespace OpenUGD.ECS.Entities
         public bool GetComponent<TComponent>(EntityId entityId, out TComponent component)
             where TComponent : struct, IComponent
         {
-            ITable table = _tablesList[GetTypeIndex(typeof(TComponent))]!;
-            if (table.Contains(entityId))
+            IEntityComponents entityComponents = _entityComponents[GetTypeIndex(typeof(TComponent))]!;
+            if (entityComponents.Contains(entityId))
             {
-                component = ((ITable<TComponent>)table)[entityId];
+                component = ((IEntityComponents<TComponent>)entityComponents)[entityId];
                 return true;
             }
 
@@ -102,40 +110,31 @@ namespace OpenUGD.ECS.Entities
         public void SetComponent<TComponent>(EntityId entityId, TComponent component)
             where TComponent : struct, IComponent
         {
-            var table = (ITable<TComponent>)_tablesList[_typeIndex[typeof(TComponent)]]!;
-            table.Set(entityId, component);
+            var entityComponent = (IEntityComponents<TComponent>)_entityComponents[_typeIndex[typeof(TComponent)]]!;
+            entityComponent.Set(entityId, component);
         }
 
         public void DeleteComponent<TComponent>(EntityId entityId) where TComponent : struct, IComponent
         {
-            var table = (ITable<TComponent>)_tablesList[_typeIndex[typeof(TComponent)]]!;
-            table.Delete(entityId);
+            var entityComponent = (IEntityComponents<TComponent>)_entityComponents[_typeIndex[typeof(TComponent)]]!;
+            entityComponent.Delete(entityId);
         }
 
         public UnsafeDirectComponent<T> UnsafeGetDirectComponents<T>() where T : struct, IComponent
         {
             var index = GetTypeIndex<T>();
-            var rawTable = _tablesList[index];
-            var result = new UnsafeDirectComponent<T>
-            {
-                Components = (T[])rawTable!.GetComponents(),
-                Contains = rawTable.GetContains(),
-                Ids = _entities.EntityIds,
-                Count = rawTable.Count
-            };
-            return result;
+            return UnsafeGetDirectComponents<T>(index);
         }
 
         public UnsafeDirectComponent<T> UnsafeGetDirectComponents<T>(int typeIndex) where T : struct, IComponent
         {
             var index = typeIndex;
-            var rawTable = _tablesList[index];
-            var result = new UnsafeDirectComponent<T>
-            {
-                Components = (T[])rawTable!.GetComponents(),
-                Contains = rawTable.GetContains(),
+            var entityComponentsRawData = _entityComponents[index];
+            var result = new UnsafeDirectComponent<T> {
+                Components = (T[])entityComponentsRawData!.GetComponents(),
+                Contains = entityComponentsRawData.GetContains(),
                 Ids = _entities.EntityIds,
-                Count = rawTable.Count
+                Count = entityComponentsRawData.Count
             };
             return result;
         }
@@ -146,16 +145,14 @@ namespace OpenUGD.ECS.Entities
 
         public EntityFilter<T> WhenAll<T>() where T : struct, IComponent
         {
-            return new EntityFilter<T>(GetTypeDescriptor(typeof(EntityFilter<T>)), new EntityFilter
-            {
+            return new EntityFilter<T>(GetTypeDescriptor(typeof(EntityFilter<T>)), new EntityFilter {
                 SubWorld = this
             }, World.Pool);
         }
 
         public EntityFilter<T0, T1> WhenAll<T0, T1>() where T0 : struct, IComponent where T1 : struct, IComponent
         {
-            return new EntityFilter<T0, T1>(GetTypeDescriptor(typeof(EntityFilter<T0, T1>)), new EntityFilter
-            {
+            return new EntityFilter<T0, T1>(GetTypeDescriptor(typeof(EntityFilter<T0, T1>)), new EntityFilter {
                 SubWorld = this
             }, World.Pool);
         }
@@ -164,8 +161,7 @@ namespace OpenUGD.ECS.Entities
             where T1 : struct, IComponent
             where T2 : struct, IComponent
         {
-            return new EntityFilter<T0, T1, T2>(GetTypeDescriptor(typeof(EntityFilter<T0, T1, T2>)), new EntityFilter
-            {
+            return new EntityFilter<T0, T1, T2>(GetTypeDescriptor(typeof(EntityFilter<T0, T1, T2>)), new EntityFilter {
                 SubWorld = this
             }, World.Pool);
         }
@@ -176,8 +172,7 @@ namespace OpenUGD.ECS.Entities
             where T3 : struct, IComponent
         {
             return new EntityFilter<T0, T1, T2, T3>(GetTypeDescriptor(typeof(EntityFilter<T0, T1, T2, T3>)),
-                new EntityFilter
-                {
+                new EntityFilter {
                     SubWorld = this
                 }, World.Pool);
         }
@@ -189,8 +184,7 @@ namespace OpenUGD.ECS.Entities
             where T4 : struct, IComponent
         {
             return new EntityFilter<T0, T1, T2, T3, T4>(GetTypeDescriptor(typeof(EntityFilter<T0, T1, T2, T3, T4>)),
-                new EntityFilter
-                {
+                new EntityFilter {
                     SubWorld = this
                 }, World.Pool);
         }
@@ -200,8 +194,7 @@ namespace OpenUGD.ECS.Entities
             TypeDescriptor typeDescriptor = GetTypeDescriptor(typeof(TFilter));
 
             var filter = new TFilter();
-            var matcher = new Matcher<TFilter>(filter, typeDescriptor, new EntityFilter
-            {
+            var matcher = new Matcher<TFilter>(filter, typeDescriptor, new EntityFilter {
                 SubWorld = this
             });
             return matcher;
@@ -235,8 +228,7 @@ namespace OpenUGD.ECS.Entities
                         {
                             var componentIndex = _typeIndex[componentType];
                             includeList.Add(componentIndex);
-                            var descriptor = new FieldDescriptor
-                            {
+                            var descriptor = new FieldDescriptor {
                                 SetFieldValue = field.SetValue,
                                 ComponentIndex = componentIndex
                             };
@@ -244,7 +236,7 @@ namespace OpenUGD.ECS.Entities
                         }
                         else
                         {
-                            Contract.Throw("dot not support type: " + componentType);
+                            Contract.Throw("does not support the type: " + componentType);
                         }
                     }
                 }
@@ -263,8 +255,7 @@ namespace OpenUGD.ECS.Entities
                     }
                 }
 
-                _descriptorCache[type] = typeDescriptor = new TypeDescriptor
-                {
+                _descriptorCache[type] = typeDescriptor = new TypeDescriptor {
                     Descriptors = descriptorList.ToArray(),
                     IncludeTypes = includeList.ToArray(),
                     ExcludeTypes = excludeList.ToArray()
@@ -286,10 +277,10 @@ namespace OpenUGD.ECS.Entities
             _entities.Add(entityId);
 
             var capacity = _entities.EntityIds.Length;
-            foreach (var tableRawData in _tablesList)
+            foreach (var rawData in _entityComponents)
             {
-                if (tableRawData == null) break;
-                tableRawData.ResizeTo(capacity);
+                if (rawData == null) break;
+                rawData.ResizeTo(capacity);
             }
 
             return entityId;
@@ -297,10 +288,10 @@ namespace OpenUGD.ECS.Entities
 
         private void DeleteEntityInternal(EntityId id)
         {
-            foreach (var table in _tablesList)
+            foreach (var rawData in _entityComponents)
             {
-                if (table == null) break;
-                table.Delete(id);
+                if (rawData == null) break;
+                rawData.Delete(id);
             }
 
             _entities.Remove(id);
@@ -341,28 +332,28 @@ namespace OpenUGD.ECS.Entities
 #if DEBUG
             private readonly object? _owner = null;
 #endif
-            private const int DefaultSize = Constants.StartEntitiesCapacity;
 
             // ReSharper disable once MemberCanBePrivate.Global
             public int EntitiesCount;
             public int LastIndex;
 
             // ReSharper disable once HeapView.ObjectAllocation.Evident
-            public EntityId[] EntityIds = new EntityId[DefaultSize];
+            public EntityId[] EntityIds;
 
             // ReSharper disable once HeapView.ObjectAllocation.Evident
-            public bool[] HasEntities = new bool[DefaultSize];
+            public bool[] HasEntities;
             public int Version;
 
-            public EntitiesMap(object? owner)
+            public EntitiesMap(object? owner, int startEntitiesCapacity)
             {
+                EntityIds = new EntityId[startEntitiesCapacity];
+                HasEntities = new bool[startEntitiesCapacity];
 #if DEBUG
                 _owner = owner;
 #endif
             }
 
-            public int Count
-            {
+            public int Count {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => EntitiesCount;
             }
@@ -475,10 +466,8 @@ namespace OpenUGD.ECS.Entities
                     _count = 0;
                 }
 
-                public EntityId Current
-                {
-                    get
-                    {
+                public EntityId Current {
+                    get {
                         if (_version != _entities.Version) throw new InvalidOperationException();
                         return _entities.EntityIds[_index];
                     }
@@ -527,10 +516,8 @@ namespace OpenUGD.ECS.Entities
                     _count = 0;
                 }
 
-                public EntityId Current
-                {
-                    get
-                    {
+                public EntityId Current {
+                    get {
                         if (_version != _entities.Version) throw new InvalidOperationException();
                         return _entities.EntityIds[_index];
                     }
@@ -557,15 +544,26 @@ namespace OpenUGD.ECS.Entities
 
             public int EntityLastIndex => SubWorld._entities.LastIndex;
 
-            public ITableRawData[] Tables => SubWorld._tablesList!;
+            public IEntityComponentsRawData[] EntityComponents => SubWorld._entityComponents!;
 
             public readonly int GetTypeIndex<T>() where T : struct, IComponent => SubWorld.GetTypeIndex<T>();
         }
 
-        private class TableListImpl<T> : TableList<T> where T : struct, IComponent
+        private class EntityComponentsListImpl<T> : EntityComponentsList<T> where T : struct, IComponent
         {
-            public TableListImpl(SubWorld subWorld, int typeIndex, EntitiesMap entitiesMap, TableHook<T>? hook) : base(
-                subWorld, typeIndex, entitiesMap, hook)
+            public EntityComponentsListImpl(
+                SubWorld subWorld,
+                int typeIndex,
+                EntitiesMap entitiesMap,
+                EntityComponentHook<T>? hook,
+                int initialCapacity
+            ) : base(
+                subWorld,
+                typeIndex,
+                entitiesMap,
+                hook,
+                initialCapacity
+            )
             {
             }
         }

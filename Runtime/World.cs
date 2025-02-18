@@ -15,7 +15,7 @@ namespace OpenUGD.ECS
 
         private readonly WorldPool _pool;
         private readonly Dictionary<Type, WorldWrapper> _map;
-        private readonly SharedComponentTable _sharedComponentTable;
+        private readonly SharedEntityComponents _sharedEntityComponents;
         private readonly SubWorld[] _subWorlds;
         private int _id;
 
@@ -33,10 +33,10 @@ namespace OpenUGD.ECS
             _map = new Dictionary<Type, WorldWrapper>();
             _subWorlds = new SubWorld[entitySubWorldCapacity];
             _pool = new WorldPool();
-            _sharedComponentTable = new SharedComponentTable(sharedComponentsBufferCapacity, sharedComponentsCapacity);
+            _sharedEntityComponents = new SharedEntityComponents(sharedComponentsBufferCapacity, sharedComponentsCapacity);
         }
 
-        public SharedComponentTable Shared => _sharedComponentTable;
+        public SharedEntityComponents Shared => _sharedEntityComponents;
 
         public WorldPool Pool => _pool;
 
@@ -57,7 +57,7 @@ namespace OpenUGD.ECS
             DeleteEntity(id, subWorld);
         }
 
-        public T GetSubWorldByGeneric<T>() where T : SubWorld
+        public T GetSubWorld<T>() where T : SubWorld
         {
             return (T)_map[typeof(T)].SubWorld;
         }
@@ -77,11 +77,11 @@ namespace OpenUGD.ECS
             var subWorld = GetSubWorldByIdInternal(entityId);
             return subWorld.Contains(entityId);
         }
-        
+
         public SubWorld[] SubWorldUnsafe => _subWorlds;
         public int SubWorldCount => _subWorlds.Length;
 
-        protected TSubWorld RegisterSubWorld<TSubWorld>(TSubWorld subWorld) where TSubWorld : SubWorld
+        protected TSubWorld AddSubWorld<TSubWorld>(TSubWorld subWorld) where TSubWorld : SubWorld
         {
             var wrapper = new WorldWrapper
             {

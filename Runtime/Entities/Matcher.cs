@@ -8,13 +8,13 @@ namespace OpenUGD.ECS.Entities
         public static void Fill<T>(T filter, TypeDescriptor typeDescriptor, SubWorld.EntityFilter entityFilter)
             where T : class
         {
-            var tables = entityFilter.Tables;
+            var components = entityFilter.EntityComponents;
             var descriptorsLength = typeDescriptor.Descriptors.Length;
             var descriptors = typeDescriptor.Descriptors;
             for (var ti = 0; ti < descriptorsLength; ti++)
             {
                 var descriptor = descriptors[ti];
-                var array = tables[descriptor.ComponentIndex].GetComponents();
+                var array = components[descriptor.ComponentIndex].GetComponents();
                 descriptor.SetFieldValue(filter, array);
             }
         }
@@ -23,7 +23,7 @@ namespace OpenUGD.ECS.Entities
             SubWorld.EntityFilter entityFilter, List<IIsMatch>? filters = null)
         {
             var hasMatch = filters != null && filters.Count != 0;
-            var tables = entityFilter.Tables;
+            var components = entityFilter.EntityComponents;
 
             var includeTypesLength = typeDescriptor.IncludeTypes.Length;
             var excludeTypesLength = typeDescriptor.ExcludeTypes.Length;
@@ -47,7 +47,7 @@ namespace OpenUGD.ECS.Entities
                 for (var ii = 0; ii < includeTypesLength; ++ii)
                 {
                     var includeTypeIndex = includeTypes[ii];
-                    var array = tables[includeTypeIndex].GetContains();
+                    var array = components[includeTypeIndex].GetContains();
                     if (array.Length > entityIndex && !array[entityIndex])
                     {
                         ok = false;
@@ -60,8 +60,8 @@ namespace OpenUGD.ECS.Entities
                     for (var ie = 0; ie < excludeTypesLength; ++ie)
                     {
                         var excludeTypeIndex = excludeTypes[ie];
-                        var array = tables[excludeTypeIndex].GetContains();
-                        if (array.Length > entityIndex && tables[excludeTypeIndex].GetContains()[entityIndex])
+                        var array = components[excludeTypeIndex].GetContains();
+                        if (array.Length > entityIndex && components[excludeTypeIndex].GetContains()[entityIndex])
                         {
                             ok = false;
                             break;
@@ -123,7 +123,7 @@ namespace OpenUGD.ECS.Entities
         public (TFilter, EntityList) GetEntities(object? context = null)
         {
             var entities = _entityFilter.SubWorld.World.Pool.PopEntityIds(context);
-            
+
             Matcher.Fill(_filter, _typeDescriptor, _entityFilter);
             Matcher.GetEntities(entities, _typeDescriptor, _entityFilter, _filters);
 
@@ -201,8 +201,8 @@ namespace OpenUGD.ECS.Entities
 
             public bool IsMatch(int index)
             {
-                var table = _matcher._entityFilter.Tables[_typeIndex];
-                var array = (TComponent[])table.GetComponents();
+                var entityComponent = _matcher._entityFilter.EntityComponents[_typeIndex];
+                var array = (TComponent[])entityComponent.GetComponents();
                 return _filter(ref array[index]);
             }
         }
@@ -228,10 +228,10 @@ namespace OpenUGD.ECS.Entities
 
             public bool IsMatch(int index)
             {
-                var table0 = _matcher._entityFilter.Tables[_typeIndex0];
-                var table1 = _matcher._entityFilter.Tables[_typeIndex1];
-                var components0 = (TComponent0[])table0.GetComponents();
-                var components1 = (TComponent1[])table1.GetComponents();
+                var entityComponents0 = _matcher._entityFilter.EntityComponents[_typeIndex0];
+                var entityComponents1 = _matcher._entityFilter.EntityComponents[_typeIndex1];
+                var components0 = (TComponent0[])entityComponents0.GetComponents();
+                var components1 = (TComponent1[])entityComponents1.GetComponents();
                 return _filter(ref components0[index], ref components1[index]);
             }
         }

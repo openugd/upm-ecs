@@ -7,5 +7,6 @@
         public const int EntitySubWorldCapacity = 8;
         public const int SharedComponentsCapacity = 16;
         public const int SharedComponentsBufferCapacity = 16 * 1024;
+        public const int StartComponentsCapacity = 8;
     }
 }

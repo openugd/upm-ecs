@@ -22,7 +22,7 @@ namespace OpenUGD.ECS.Entities
             _typeDescriptor = typeDescriptor;
             _entityFilter = entityFilter;
             _pool = pool;
-            Components = (T[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[0]].GetComponents();
+            Components = (T[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[0]].GetComponents();
         }
 
         public void ForEach(ForEachAction action)
@@ -82,8 +82,8 @@ namespace OpenUGD.ECS.Entities
             _entityFilter = entityFilter;
             _pool = pool;
 
-            Components0 = (T0[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[0]].GetComponents();
-            Components1 = (T1[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[1]].GetComponents();
+            Components0 = (T0[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[0]].GetComponents();
+            Components1 = (T1[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[1]].GetComponents();
         }
 
         public void ForEach(ForEachAction action)
@@ -148,9 +148,9 @@ namespace OpenUGD.ECS.Entities
             _entityFilter = entityFilter;
             _pool = pool;
 
-            Components0 = (T0[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[0]].GetComponents();
-            Components1 = (T1[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[1]].GetComponents();
-            Components2 = (T2[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[2]].GetComponents();
+            Components0 = (T0[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[0]].GetComponents();
+            Components1 = (T1[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[1]].GetComponents();
+            Components2 = (T2[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[2]].GetComponents();
         }
 
         public void ForEach(ForEachAction action)
@@ -218,10 +218,10 @@ namespace OpenUGD.ECS.Entities
             _entityFilter = entityFilter;
             _pool = pool;
 
-            Components0 = (T0[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[0]].GetComponents();
-            Components1 = (T1[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[1]].GetComponents();
-            Components2 = (T2[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[2]].GetComponents();
-            Components3 = (T3[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[3]].GetComponents();
+            Components0 = (T0[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[0]].GetComponents();
+            Components1 = (T1[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[1]].GetComponents();
+            Components2 = (T2[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[2]].GetComponents();
+            Components3 = (T3[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[3]].GetComponents();
         }
 
         public void ForEach(ForEachAction action)
@@ -293,11 +293,11 @@ namespace OpenUGD.ECS.Entities
             _entityFilter = entityFilter;
             _pool = pool;
 
-            Components0 = (T0[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[0]].GetComponents();
-            Components1 = (T1[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[1]].GetComponents();
-            Components2 = (T2[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[2]].GetComponents();
-            Components3 = (T3[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[3]].GetComponents();
-            Components4 = (T4[])_entityFilter.Tables[_typeDescriptor.IncludeTypes[4]].GetComponents();
+            Components0 = (T0[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[0]].GetComponents();
+            Components1 = (T1[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[1]].GetComponents();
+            Components2 = (T2[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[2]].GetComponents();
+            Components3 = (T3[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[3]].GetComponents();
+            Components4 = (T4[])_entityFilter.EntityComponents[_typeDescriptor.IncludeTypes[4]].GetComponents();
         }
 
         public void ForEach(ForEachAction action)

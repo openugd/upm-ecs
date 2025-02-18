@@ -7,49 +7,58 @@ using OpenUGD.ECS.Utilities;
 
 namespace OpenUGD.ECS.Entities
 {
-    public abstract class TableList<T> : ITable<T>, ITableRawData where T : struct, IComponent
+    public abstract class EntityComponentsList<T> : IEntityComponents<T>, IEntityComponentsRawData where T : struct, IComponent
     {
-        private const int StartSize = Constants.StartEntitiesCapacity;
-        private T[] _components = new T[StartSize];
-        private bool[] _contains = new bool[StartSize];
-        private int _capacity = StartSize;
+        private T[] _components;
+        private bool[] _contains;
+        private int _capacity;
         private int _count;
         private int _version;
         private int _startIndex;
         private readonly int _typeIndex;
         private readonly SubWorld _subWorld;
-        private readonly TableHook<T>? _hook;
+        private readonly EntityComponentHook<T>? _hook;
         private readonly SubWorld.EntitiesMap _entitiesMap;
 
-        protected TableList(SubWorld subWorld, int typeIndex, SubWorld.EntitiesMap entitiesMap, TableHook<T>? hook)
+        protected EntityComponentsList(
+            SubWorld subWorld,
+            int typeIndex,
+            SubWorld.EntitiesMap entitiesMap,
+            EntityComponentHook<T>? hook,
+            int initialCapacity
+        )
         {
             _subWorld = subWorld;
             _typeIndex = typeIndex;
             _entitiesMap = entitiesMap;
             _hook = hook;
             _startIndex = int.MaxValue;
+            _capacity = initialCapacity;
+            _components = new T[initialCapacity];
+            _contains = new bool[initialCapacity];
         }
 
-        public int Capacity
-        {
+        public SubWorld SubWorld {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _subWorld;
+        }
+
+        public int Capacity {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _capacity;
         }
 
-        public int TypeIndex
-        {
+        public int TypeIndex {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _typeIndex;
         }
 
-        public T[] RawComponents
-        {
+        public T[] RawComponents {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _components;
         }
 
-        public bool[] RawContains
-        {
+        public bool[] RawContains {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _contains;
         }
@@ -78,8 +87,7 @@ namespace OpenUGD.ECS.Entities
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool[] GetContains() => _contains;
 
-        public int Count
-        {
+        public int Count {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _count;
         }
@@ -144,10 +152,8 @@ namespace OpenUGD.ECS.Entities
             }
         }
 
-        public T this[EntityId entityId]
-        {
-            get
-            {
+        public T this[EntityId entityId] {
+            get {
                 int index = entityId.Index;
 
                 string? errorMessage = null;
@@ -270,42 +276,41 @@ namespace OpenUGD.ECS.Entities
 
         public struct Enumerator : IEnumerator<ComponentIndex<T>>
         {
-            private TableList<T> _table;
+            private EntityComponentsList<T> _entityComponents;
             private EntityId[] _ids;
             private int _index;
-            private int _tableVersion;
+            private int _componentsVersion;
             private int _entityVersion;
             private int _count;
             private ComponentIndex<T> _current;
 
-            public Enumerator(TableList<T> tableList)
+            public Enumerator(EntityComponentsList<T> entityComponentsList)
             {
-                _table = tableList;
-                _ids = tableList._entitiesMap.EntityIds;
-                _index = tableList._startIndex;
+                _entityComponents = entityComponentsList;
+                _ids = entityComponentsList._entitiesMap.EntityIds;
+                _index = entityComponentsList._startIndex;
                 _count = 0;
-                _tableVersion = tableList._version;
-                _entityVersion = tableList._entitiesMap.Version;
+                _componentsVersion = entityComponentsList._version;
+                _entityVersion = entityComponentsList._entitiesMap.Version;
                 _current = default(ComponentIndex<T>);
             }
 
             public bool MoveNext()
             {
-                if (_tableVersion != _table._version) throw new InvalidOperationException();
-                if (_entityVersion != _table._entitiesMap.Version) throw new InvalidOperationException();
-                if (_count == _table._count) return false;
+                if (_componentsVersion != _entityComponents._version) throw new InvalidOperationException();
+                if (_entityVersion != _entityComponents._entitiesMap.Version) throw new InvalidOperationException();
+                if (_count == _entityComponents._count) return false;
                 if (_index >= _ids.Length) return false;
 
-                while (!_table._contains[_index])
+                while (!_entityComponents._contains[_index])
                 {
                     ++_index;
                 }
 
                 ++_count;
-                _current = new ComponentIndex<T>
-                {
+                _current = new ComponentIndex<T> {
                     Id = _ids[_index],
-                    Component = _table._components[_index]
+                    Component = _entityComponents._components[_index]
                 };
                 ++_index;
                 return true;
@@ -313,22 +318,20 @@ namespace OpenUGD.ECS.Entities
 
             public void Reset()
             {
-                _index = _table._startIndex;
+                _index = _entityComponents._startIndex;
                 _count = 0;
             }
 
-            public ComponentIndex<T> Current
-            {
-                get
-                {
-                    if (_tableVersion != _table._version) throw new InvalidOperationException();
+            public ComponentIndex<T> Current {
+                get {
+                    if (_componentsVersion != _entityComponents._version) throw new InvalidOperationException();
                     return _current;
                 }
             }
 
             object IEnumerator.Current => Current;
 
-            public void Dispose() => _table = null;
+            public void Dispose() => _entityComponents = null;
         }
     }
 }

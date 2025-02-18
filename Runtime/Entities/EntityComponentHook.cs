@@ -2,7 +2,7 @@
 
 namespace OpenUGD.ECS.Entities
 {
-    public abstract class TableHook<TComponent> where TComponent : struct, IComponent
+    public abstract class EntityComponentHook<TComponent> where TComponent : struct, IComponent
     {
         public abstract void BeforeDelete(ref EntityId id, ref TComponent component);
         public abstract void AfterDelete(ref EntityId entity);

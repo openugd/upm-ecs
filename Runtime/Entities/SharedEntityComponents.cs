@@ -5,7 +5,7 @@ using OpenUGD.ECS.Utilities;
 
 namespace OpenUGD.ECS.Entities
 {
-    public unsafe class SharedComponentTable
+    public unsafe class SharedEntityComponents
     {
         private readonly Type[] _componentTypes;
         private readonly uint[] _offsets;
@@ -15,7 +15,7 @@ namespace OpenUGD.ECS.Entities
         private uint _lastOffset;
         private int _count;
 
-        public SharedComponentTable()
+        public SharedEntityComponents()
         {
             _buffer = new byte[Constants.SharedComponentsBufferCapacity];
             _componentTypes = new Type[Constants.SharedComponentsCapacity];
@@ -24,7 +24,7 @@ namespace OpenUGD.ECS.Entities
             _contains = new bool[Constants.SharedComponentsCapacity];
         }
 
-        public SharedComponentTable(int sharedComponentsBufferCapacity, int sharedComponentsCapacity)
+        public SharedEntityComponents(int sharedComponentsBufferCapacity, int sharedComponentsCapacity)
         {
             _buffer = new byte[sharedComponentsBufferCapacity];
             _componentTypes = new Type[sharedComponentsCapacity];
