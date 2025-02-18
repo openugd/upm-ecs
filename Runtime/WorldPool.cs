@@ -7,7 +7,7 @@ using OpenUGD.ECS.Utilities;
 
 namespace OpenUGD.ECS
 {
-    public class WorldPool : IDisposable
+    public class WorldPool
     {
         private readonly List<EntityList> _entityRefs = new();
         private readonly Stack<EntityList> _entities = new();
@@ -15,7 +15,12 @@ namespace OpenUGD.ECS
         private readonly Dictionary<Type, Stack<IList>> _rawListPool = new();
         private readonly Stack<HashSet<int>> _intHashSet = new();
 
-        void IDisposable.Dispose()
+        /// <summary>
+        /// DEBUG, if entityRefs is more than MemoryLeakRefs, we expect a memory leak
+        /// </summary>
+        public int MemoryLeakRefs = 20;
+
+        public void Clear()
         {
             _entityRefs.Clear();
             _entities.Clear();
@@ -40,7 +45,21 @@ namespace OpenUGD.ECS
             _intHashSet.Push(hashSet);
         }
 
-        public EntityList PopEntityIds(object? context = null, int capacity = Constants.DefaultEntityListPoolCapacity)
+        public EntityList PopEntityIds(
+            EntityList entities,
+            object? context = null,
+            int capacity = Constants.DefaultEntityListPoolCapacity
+        )
+        {
+            var pool = PopEntityIds(context: context, capacity: capacity);
+            pool.AddRange(entities);
+            return pool;
+        }
+
+        public EntityList PopEntityIds(
+            object? context = null,
+            int capacity = Constants.DefaultEntityListPoolCapacity
+        )
         {
             EntityList result;
             if (_entities.Count != 0)
@@ -51,7 +70,7 @@ namespace OpenUGD.ECS
             {
                 result = new EntityListImpl(this, capacity);
 #if DEBUG
-                if (_entityRefs.Count >= 20)
+                if (_entityRefs.Count >= MemoryLeakRefs)
                 {
                     var refs = string.Join(Environment.NewLine, _entityRefs.Select(e =>
                         e.Context?.ToString() ?? "---"

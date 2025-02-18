@@ -1,7 +1,7 @@
 {
   "name": "com.openugd.ecs",
   "displayName": "ECS",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "unity": "2020.3",
   "author": "https://github.com/openugd",
   "description": "ECS Entity Component System",

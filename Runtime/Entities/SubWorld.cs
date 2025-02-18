@@ -42,7 +42,8 @@ namespace OpenUGD.ECS.Entities
             _poolIndex = new Stack<short>(startEntitiesCapacity);
             _typeIndex = new Dictionary<Type, int>();
             _entities = new EntitiesMap(this, startEntitiesCapacity);
-            _sharedEntityComponents = new SharedEntityComponents(sharedComponentsBufferCapacity, sharedComponentsCapacity);
+            _sharedEntityComponents =
+                new SharedEntityComponents(sharedComponentsBufferCapacity, sharedComponentsCapacity);
         }
 
         public SharedEntityComponents Shared => _sharedEntityComponents;
@@ -142,6 +143,19 @@ namespace OpenUGD.ECS.Entities
         public int GetTypeIndex<TComponent>() => _typeIndex[typeof(TComponent)];
 
         public int GetTypeIndex(Type type) => _typeIndex[type];
+
+        public void DeleteAll()
+        {
+            var entities = World.Pool.PopEntityIds(this);
+            entities.AddRange(this);
+
+            foreach (var entityId in entities)
+            {
+                DeleteEntityInternal(entityId);
+            }
+
+            World.Pool.Return(entities);
+        }
 
         public EntityFilter<T> WhenAll<T>() where T : struct, IComponent
         {
