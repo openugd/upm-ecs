@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using OpenUGD.ECS.Entities;
 
 namespace OpenUGD.ECS
 {
-    public abstract class World : SubWorld.WorldBase
+    public abstract class World : SubWorld.WorldBase, IEnumerable<SubWorld>
     {
         private struct WorldWrapper
         {
@@ -14,7 +15,7 @@ namespace OpenUGD.ECS
         }
 
         private readonly WorldPool _pool;
-        private readonly Dictionary<Type, WorldWrapper> _map;
+        private readonly Dictionary<Type, WorldWrapper> _subWorldsMap;
         private readonly SharedEntityComponents _sharedEntityComponents;
         private readonly SubWorld[] _subWorlds;
         private int _id;
@@ -30,10 +31,11 @@ namespace OpenUGD.ECS
                 throw new ArgumentException("Entity sub world capacity must be greater than 0");
             }
 
-            _map = new Dictionary<Type, WorldWrapper>();
+            _subWorldsMap = new Dictionary<Type, WorldWrapper>();
             _subWorlds = new SubWorld[entitySubWorldCapacity];
             _pool = new WorldPool();
-            _sharedEntityComponents = new SharedEntityComponents(sharedComponentsBufferCapacity, sharedComponentsCapacity);
+            _sharedEntityComponents =
+                new SharedEntityComponents(sharedComponentsBufferCapacity, sharedComponentsCapacity);
         }
 
         public SharedEntityComponents Shared => _sharedEntityComponents;
@@ -59,12 +61,12 @@ namespace OpenUGD.ECS
 
         public T GetSubWorld<T>() where T : SubWorld
         {
-            return (T)_map[typeof(T)].SubWorld;
+            return (T)_subWorldsMap[typeof(T)].SubWorld;
         }
 
         public int GetSubWorldId<T>()
         {
-            return _map[typeof(T)].SubWorldId;
+            return _subWorldsMap[typeof(T)].SubWorldId;
         }
 
         public SubWorld GetSubWorld(EntityId entityId)
@@ -79,22 +81,20 @@ namespace OpenUGD.ECS
         }
 
         public SubWorld[] SubWorldUnsafe => _subWorlds;
-        public int SubWorldCount => _subWorlds.Length;
+        public int SubWorldCount => _subWorldsMap.Count;
 
         protected TSubWorld AddSubWorld<TSubWorld>(TSubWorld subWorld) where TSubWorld : SubWorld
         {
-            var wrapper = new WorldWrapper
-            {
-                SubWorldId = (short)_map.Count,
+            var wrapper = new WorldWrapper {
+                SubWorldId = (short)_subWorldsMap.Count,
                 SubWorld = subWorld
             };
-            _map.Add(typeof(TSubWorld), wrapper);
+            _subWorldsMap.Add(typeof(TSubWorld), wrapper);
 
             if (_subWorlds.Length <= wrapper.SubWorldId)
             {
                 throw new ArgumentException("Entity sub world capacity exceeded");
             }
-
             _subWorlds[wrapper.SubWorldId] = subWorld;
             return subWorld;
         }
@@ -102,7 +102,7 @@ namespace OpenUGD.ECS
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private WorldWrapper GetSubWorldInternal<T>() where T : SubWorld
         {
-            return _map[typeof(T)];
+            return _subWorldsMap[typeof(T)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -115,6 +115,49 @@ namespace OpenUGD.ECS
         private SubWorld GetSubWorldByIdInternal(EntityId id)
         {
             return _subWorlds[id.SubWorldId];
+        }
+
+        IEnumerator<SubWorld> IEnumerable<SubWorld>.GetEnumerator() => GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public Enumerator GetEnumerator() => new Enumerator(this);
+
+        public struct Enumerator : IEnumerator<SubWorld>
+        {
+            private readonly int _total;
+            private World _world;
+            private int _index;
+
+            public Enumerator(World world)
+            {
+                _world = world;
+                _total = world._subWorldsMap.Count;
+                _index = -1;
+            }
+
+            public bool MoveNext()
+            {
+                if (_total != _world._subWorldsMap.Count)
+                {
+                    throw new InvalidOperationException("subWorlds were changed");
+                }
+
+                while (++_index < _total)
+                {
+                    if (_world._subWorlds[_index] != null)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            public void Reset() => _index = -1;
+            object IEnumerator.Current => Current;
+            public SubWorld Current => _world._subWorlds[_index];
+            public void Dispose() => _world = null;
         }
     }
 }

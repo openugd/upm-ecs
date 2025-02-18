@@ -7,13 +7,22 @@ using OpenUGD.ECS.Utilities;
 
 namespace OpenUGD.ECS
 {
-    public class WorldPool
+    public class WorldPool : IDisposable
     {
         private readonly List<EntityList> _entityRefs = new();
         private readonly Stack<EntityList> _entities = new();
         private readonly Dictionary<Type, Stack<IList>> _listPool = new();
         private readonly Dictionary<Type, Stack<IList>> _rawListPool = new();
         private readonly Stack<HashSet<int>> _intHashSet = new();
+
+        void IDisposable.Dispose()
+        {
+            _entityRefs.Clear();
+            _entities.Clear();
+            _listPool.Clear();
+            _rawListPool.Clear();
+            _intHashSet.Clear();
+        }
 
         public HashSet<int> PopIntHashSet()
         {
