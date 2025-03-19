@@ -50,7 +50,7 @@ namespace OpenUGD.ECS.Entities
 
         public bool Contains(EntityId entityId) => _entities.Contains(entityId);
 
-        protected IEntityComponents<TComponent> AddComponent<TComponent>(EntityComponentHook<TComponent>? hook = null)
+        protected EntityComponents<TComponent> AddComponent<TComponent>(EntityComponentHook<TComponent>? hook = null)
             where TComponent : struct, IComponent
         {
             var entityComponents = new EntityComponentsListImpl<TComponent>(
@@ -563,7 +563,7 @@ namespace OpenUGD.ECS.Entities
             public readonly int GetTypeIndex<T>() where T : struct, IComponent => SubWorld.GetTypeIndex<T>();
         }
 
-        private class EntityComponentsListImpl<T> : EntityComponentsList<T> where T : struct, IComponent
+        private class EntityComponentsListImpl<T> : EntityComponents<T> where T : struct, IComponent
         {
             public EntityComponentsListImpl(
                 SubWorld subWorld,

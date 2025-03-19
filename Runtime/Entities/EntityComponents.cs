@@ -7,7 +7,7 @@ using OpenUGD.ECS.Utilities;
 
 namespace OpenUGD.ECS.Entities
 {
-    public abstract class EntityComponentsList<T> : IEntityComponents<T>, IEntityComponentsRawData where T : struct, IComponent
+    public abstract class EntityComponents<T> : IEntityComponents<T>, IEntityComponentsRawData where T : struct, IComponent
     {
         private T[] _components;
         private bool[] _contains;
@@ -20,7 +20,7 @@ namespace OpenUGD.ECS.Entities
         private readonly EntityComponentHook<T>? _hook;
         private readonly SubWorld.EntitiesMap _entitiesMap;
 
-        protected EntityComponentsList(
+        protected EntityComponents(
             SubWorld subWorld,
             int typeIndex,
             SubWorld.EntitiesMap entitiesMap,
@@ -244,7 +244,7 @@ namespace OpenUGD.ECS.Entities
             }
         }
 
-        public void ResizeTo(int newCapacity)
+        void IEntityComponentsRawData.ResizeTo(int newCapacity)
         {
             if (_capacity < newCapacity)
             {
@@ -272,11 +272,13 @@ namespace OpenUGD.ECS.Entities
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        public IEnumerator<ComponentIndex<T>> GetEnumerator() => new Enumerator(this);
+        IEnumerator<ComponentIndex<T>> IEnumerable<ComponentIndex<T>>.GetEnumerator() => GetEnumerator();
+        
+        public Enumerator GetEnumerator() => new Enumerator(this);
 
         public struct Enumerator : IEnumerator<ComponentIndex<T>>
         {
-            private EntityComponentsList<T> _entityComponents;
+            private EntityComponents<T> _entityComponents;
             private EntityId[] _ids;
             private int _index;
             private int _componentsVersion;
@@ -284,7 +286,7 @@ namespace OpenUGD.ECS.Entities
             private int _count;
             private ComponentIndex<T> _current;
 
-            public Enumerator(EntityComponentsList<T> entityComponentsList)
+            public Enumerator(EntityComponents<T> entityComponentsList)
             {
                 _entityComponents = entityComponentsList;
                 _ids = entityComponentsList._entitiesMap.EntityIds;
