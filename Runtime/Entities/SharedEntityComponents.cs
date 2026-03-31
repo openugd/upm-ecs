@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using OpenUGD.ECS.Components;
 using OpenUGD.ECS.Utilities;
+using RuntimeHelpers = System.Runtime.CompilerServices.RuntimeHelpers;
 
 namespace OpenUGD.ECS.Entities
 {
@@ -68,6 +69,7 @@ namespace OpenUGD.ECS.Entities
 
         public void RegisterComponent<T>() where T : struct, IComponent
         {
+            EnsureSupportedComponentType<T>();
             var index = GetComponentIndex<T>();
             Contract.True(index == -1);
             var size = Unsafe.SizeOf<T>();
@@ -97,6 +99,7 @@ namespace OpenUGD.ECS.Entities
 
         public T GetComponent<T>() where T : struct, IComponent
         {
+            EnsureSupportedComponentType<T>();
             var index = GetComponentIndex<T>();
             Contract.True(index != -1);
 
@@ -113,26 +116,9 @@ namespace OpenUGD.ECS.Entities
             return component;
         }
 
-        public ref T GetComponentRef<T>() where T : struct, IComponent
-        {
-            var index = GetComponentIndex<T>();
-            Contract.True(index != -1);
-
-            if (!_contains[index])
-            {
-                throw new InvalidOperationException($"type: {typeof(T)} did not register");
-            }
-
-            var offset = _offsets[index];
-            fixed (byte* iterator = _buffer)
-            {
-                void* pointer = iterator + offset;
-                return ref Unsafe.AsRef<T>(pointer);
-            }
-        }
-
         public UnsafePointer GetUnsafeComponent<T>() where T : struct, IComponent
         {
+            EnsureSupportedComponentType<T>();
             var index = GetComponentIndex<T>();
             Contract.True(index != -1);
             if (!_contains[index])
@@ -143,11 +129,7 @@ namespace OpenUGD.ECS.Entities
             var handler = Unsafe.AllocPinned(_buffer);
             var offset = _offsets[index];
             var size = _size[index];
-            void* address = null;
-            fixed (byte* buffer = _buffer)
-            {
-                address = buffer + offset;
-            }
+            void* address = (byte*)handler.AddrOfPinnedObject().ToPointer() + offset;
 
             var pointer = new UnsafePointer(handler, address, size);
 
@@ -156,6 +138,7 @@ namespace OpenUGD.ECS.Entities
 
         public void SetComponent<T>(T value) where T : struct, IComponent
         {
+            EnsureSupportedComponentType<T>();
             var index = GetComponentIndex<T>();
             Contract.True(index != -1);
 
@@ -183,6 +166,16 @@ namespace OpenUGD.ECS.Entities
             }
 
             return -1;
+        }
+
+        private static void EnsureSupportedComponentType<T>() where T : struct, IComponent
+        {
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
+            {
+                throw new NotSupportedException(
+                    $"Shared component type {typeof(T)} contains managed references. " +
+                    "SharedEntityComponents stores raw bytes and only supports unmanaged-style component data.");
+            }
         }
 
         public struct UnsafePointer
